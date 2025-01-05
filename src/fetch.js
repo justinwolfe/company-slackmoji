@@ -19,7 +19,24 @@ async function createDataDirectoryIfNeeded() {
 async function fetchAndSaveUsers() {
   console.log('Fetching users...');
   const result = await slack.users.list();
-  const activeUsers = result.members.filter((user) => !user.deleted);
+  const activeUsers = result.members.filter((user) => {
+    // Filter out deleted users
+    if (user.deleted) return false;
+
+    // Filter out bot users
+    if (user.is_bot) return false;
+
+    // Filter out users with 'bot' in their handle
+    if (user.name.toLowerCase().includes('bot')) return false;
+
+    // Clean up hyphenated names
+    if (user.name.includes('-')) {
+      user.name = user.name.split('-')[0];
+    }
+
+    return true;
+  });
+
   const dataDir = await createDataDirectoryIfNeeded();
   await fs.writeFile(
     path.join(dataDir, 'users.json'),
