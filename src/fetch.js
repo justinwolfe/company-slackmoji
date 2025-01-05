@@ -26,6 +26,9 @@ async function fetchAndSaveUsers() {
     // Filter out bot users
     if (user.is_bot) return false;
 
+    // Filter out ultra restricted users
+    if (user.is_ultra_restricted) return false;
+
     // Filter out users with 'bot' in their handle
     if (user.name.toLowerCase().includes('bot')) return false;
 
