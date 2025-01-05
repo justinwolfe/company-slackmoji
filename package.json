@@ -4,7 +4,8 @@
   "description": "Script to fetch Slack users and emojis",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "fetch": "node src/fetch.js",
+    "process": "node src/process.js",
     "generate": "source .venv/bin/activate && node src/processAvatars.js"
   },
   "dependencies": {

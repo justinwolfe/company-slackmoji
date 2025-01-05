@@ -32,13 +32,27 @@ async function fetchAndSaveUsers() {
     // Filter out ultra restricted users
     if (user.is_ultra_restricted) return false;
 
-    // Filter out users with 'bot' in their handle
-    if (user.name.toLowerCase().includes('bot')) return false;
+    // Use display_name instead of name
+    const displayName = user.profile.display_name.toLowerCase();
 
-    // Clean up hyphenated names
-    if (user.name.includes('-')) {
-      user.name = user.name.split('-')[0];
+    // Filter out users with 'bot' in their handle
+    if (displayName.includes('bot')) return false;
+
+    // Clean up hyphenated names and underscore names
+    let processedName = displayName;
+
+    // Remove any text that includes "back" followed by date info
+    processedName = processedName.split(/[\s_]back[\s_].+/)[0];
+
+    // Then handle remaining hyphens and underscores
+    if (processedName.includes('-')) {
+      processedName = processedName.split('-')[0];
     }
+    if (processedName.includes('_')) {
+      processedName = processedName.split('_')[0];
+    }
+    // Replace spaces with underscores
+    user.name = processedName.replace(/\s+/g, '_');
 
     return true;
   });

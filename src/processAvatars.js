@@ -44,8 +44,14 @@ async function processAvatar(user) {
 
     // Download the image
     const imageBuffer = await downloadImage(avatarUrl);
-    const tempInputPath = path.join(tempDir, `${user.name}_input.png`);
-    const tempOutputPath = path.join(tempDir, `${user.name}_nobg.png`);
+    const tempInputPath = path.join(
+      tempDir,
+      `${user.name.toLowerCase()}_input.png`
+    );
+    const tempOutputPath = path.join(
+      tempDir,
+      `${user.name.toLowerCase()}_nobg.png`
+    );
     await fs.writeFile(tempInputPath, imageBuffer);
 
     // Remove background using Python script
@@ -65,7 +71,7 @@ async function processAvatar(user) {
     await fs.mkdir(outputDir, { recursive: true });
 
     // Save the final processed image
-    const outputPath = path.join(outputDir, `${user.name}.png`);
+    const outputPath = path.join(outputDir, `${user.name.toLowerCase()}.png`);
     await fs.writeFile(outputPath, processedImage);
 
     // Clean up temp files

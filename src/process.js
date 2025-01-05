@@ -27,7 +27,7 @@ async function processUsers() {
 
     users.forEach((user) => {
       // Check if user's handle exists as an emoji
-      if (emojis[user.name]) {
+      if (emojis[user.name.toLowerCase()]) {
         usersWithEmojisAlready.push(user);
       } else {
         usersWhoNeedEmojis.push(user);
