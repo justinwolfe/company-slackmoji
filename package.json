@@ -4,10 +4,13 @@
   "description": "Script to fetch Slack users and emojis",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "generate": "source .venv/bin/activate && node src/processAvatars.js"
   },
   "dependencies": {
     "@slack/web-api": "^6.8.1",
-    "dotenv": "^16.0.3"
+    "axios": "^1.6.2",
+    "dotenv": "^16.0.3",
+    "sharp": "^0.33.0"
   }
 }
