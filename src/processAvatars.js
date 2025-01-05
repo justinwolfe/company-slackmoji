@@ -6,45 +6,114 @@ const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 
+// Add error logging collection
+const errorLogs = {
+  recovered: [], // Errors that were recovered through retries
+  failed: [], // Errors that failed all retries
+  downloadFailed: [], // Image download failures
+  otherErrors: [], // Other processing errors
+};
+
 async function downloadImage(url) {
-  const response = await axios.get(url, { responseType: 'arraybuffer' });
-  return Buffer.from(response.data, 'binary');
+  try {
+    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    return Buffer.from(response.data, 'binary');
+  } catch (error) {
+    errorLogs.downloadFailed.push({ url, error: error.message });
+    throw error;
+  }
 }
 
 async function removeBackground(inputPath, outputPath) {
-  try {
-    console.log(
-      `Starting background removal for ${path.basename(inputPath)}...`
-    );
-    const { stderr } = await Promise.race([
-      execAsync(
-        `python3 ${path.join(
-          __dirname,
-          'remove_bg.py'
-        )} "${inputPath}" "${outputPath}"`
-      ),
-      new Promise((_, reject) =>
-        setTimeout(
-          () =>
-            reject(new Error('Background removal timed out after 60 seconds')),
-          60000
-        )
-      ),
-    ]);
+  const maxRetries = 3;
+  let lastError;
 
-    if (stderr) {
-      throw new Error(stderr);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(
+        `Starting background removal for ${path.basename(
+          inputPath
+        )} (attempt ${attempt}/${maxRetries})...`
+      );
+      const { stdout, stderr } = await Promise.race([
+        execAsync(
+          `python3 ${path.join(
+            __dirname,
+            'remove_bg.py'
+          )} "${inputPath}" "${outputPath}"`
+        ),
+        new Promise((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error('Background removal timed out after 60 seconds')
+              ),
+            60000
+          )
+        ),
+      ]);
+
+      // Check if the process completed successfully by looking for success message
+      if (stderr && stderr.includes('Process completed successfully')) {
+        console.log(
+          `Completed background removal for ${path.basename(inputPath)}`
+        );
+        if (attempt > 1) {
+          errorLogs.recovered.push({
+            file: path.basename(inputPath),
+            attempts: attempt,
+            error: lastError?.message,
+          });
+        }
+        return; // Success! Exit the retry loop
+      }
+
+      // If we don't see a success message, treat it as an error
+      throw new Error(
+        stderr || 'Background removal failed without error message'
+      );
+    } catch (error) {
+      lastError = error;
+      console.log(`Attempt ${attempt} failed: ${error.message}`);
+      if (attempt < maxRetries) {
+        // Wait a bit before retrying
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
     }
-    console.log(`Completed background removal for ${path.basename(inputPath)}`);
-  } catch (error) {
-    throw new Error(`Failed to remove background: ${error.message}`);
   }
+
+  errorLogs.failed.push({
+    file: path.basename(inputPath),
+    attempts: maxRetries,
+    error: lastError?.message,
+  });
+  throw new Error(
+    `Failed all ${maxRetries} attempts to remove background: ${lastError.message}`
+  );
 }
 
 async function processAvatar(user) {
   try {
-    // Get the highest resolution avatar URL (512px)
-    const avatarUrl = user.profile.image_512;
+    // Try different image sizes in order from largest to smallest
+    const imageSizes = [
+      'image_1024',
+      'image_512',
+      'image_192',
+      'image_72',
+      'image_48',
+      'image_32',
+      'image_24',
+    ];
+    let avatarUrl = null;
+
+    for (const size of imageSizes) {
+      if (user.profile[size]) {
+        avatarUrl = user.profile[size];
+        console.log(`[${user.name}] Using ${size} image: ${avatarUrl}`);
+        break;
+      }
+    }
+
     if (!avatarUrl) {
       console.log(`No avatar found for user ${user.name}`);
       return;
@@ -102,8 +171,62 @@ async function processAvatar(user) {
 
     console.log(`Successfully processed avatar for ${user.name}`);
   } catch (error) {
+    errorLogs.otherErrors.push({
+      user: user.name,
+      error: error.message,
+    });
     console.error(`Error processing avatar for ${user.name}:`, error.message);
   }
+}
+
+async function printErrorSummary() {
+  console.log('\n=== Error Summary ===\n');
+
+  if (errorLogs.recovered.length > 0) {
+    console.log('🟡 Recovered Errors (succeeded after retries):');
+    errorLogs.recovered.forEach(({ file, attempts, error }) => {
+      console.log(`  - ${file}: Succeeded after ${attempts} attempts`);
+      console.log(`    Initial error: ${error}`);
+    });
+    console.log();
+  }
+
+  if (errorLogs.failed.length > 0) {
+    console.log('❌ Failed Background Removals:');
+    errorLogs.failed.forEach(({ file, attempts, error }) => {
+      console.log(`  - ${file}: Failed after ${attempts} attempts`);
+      console.log(`    Error: ${error}`);
+    });
+    console.log();
+  }
+
+  if (errorLogs.downloadFailed.length > 0) {
+    console.log('❌ Failed Downloads:');
+    errorLogs.downloadFailed.forEach(({ url, error }) => {
+      console.log(`  - ${url}`);
+      console.log(`    Error: ${error}`);
+    });
+    console.log();
+  }
+
+  if (errorLogs.otherErrors.length > 0) {
+    console.log('❌ Other Processing Errors:');
+    errorLogs.otherErrors.forEach(({ user, error }) => {
+      console.log(`  - ${user}: ${error}`);
+    });
+    console.log();
+  }
+
+  const totalErrors =
+    errorLogs.failed.length +
+    errorLogs.downloadFailed.length +
+    errorLogs.otherErrors.length;
+  const recoveredCount = errorLogs.recovered.length;
+
+  console.log('=== Summary Statistics ===');
+  console.log(`Total Errors: ${totalErrors + recoveredCount}`);
+  console.log(`Successfully Recovered: ${recoveredCount}`);
+  console.log(`Failed: ${totalErrors}`);
 }
 
 async function main() {
@@ -125,7 +248,7 @@ async function main() {
     console.log(`Found ${usersWhoNeedEmojis.length} users to process`);
 
     // Process avatars in parallel with a smaller concurrency limit since we're using CPU
-    const batchSize = 3;
+    const batchSize = 2; // Reduced from 5 to 2
     for (let i = 0; i < usersWhoNeedEmojis.length; i += batchSize) {
       const batch = usersWhoNeedEmojis.slice(i, i + batchSize);
       await Promise.all(batch.map((user) => processAvatar(user)));
@@ -134,11 +257,17 @@ async function main() {
           usersWhoNeedEmojis.length / batchSize
         )}`
       );
+      // Add a small delay between batches to let the system cool down
+      if (i + batchSize < usersWhoNeedEmojis.length) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
 
-    console.log('Avatar processing complete!');
+    console.log('\nAvatar processing complete!');
+    await printErrorSummary();
   } catch (error) {
     console.error('Error in main process:', error.message);
+    await printErrorSummary();
     process.exit(1);
   }
 }
