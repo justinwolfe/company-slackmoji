@@ -13,15 +13,29 @@ async function downloadImage(url) {
 
 async function removeBackground(inputPath, outputPath) {
   try {
-    const { stderr } = await execAsync(
-      `python3 ${path.join(
-        __dirname,
-        'remove_bg.py'
-      )} "${inputPath}" "${outputPath}"`
+    console.log(
+      `Starting background removal for ${path.basename(inputPath)}...`
     );
+    const { stderr } = await Promise.race([
+      execAsync(
+        `python3 ${path.join(
+          __dirname,
+          'remove_bg.py'
+        )} "${inputPath}" "${outputPath}"`
+      ),
+      new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(new Error('Background removal timed out after 60 seconds')),
+          60000
+        )
+      ),
+    ]);
+
     if (stderr) {
       throw new Error(stderr);
     }
+    console.log(`Completed background removal for ${path.basename(inputPath)}`);
   } catch (error) {
     throw new Error(`Failed to remove background: ${error.message}`);
   }
@@ -36,13 +50,15 @@ async function processAvatar(user) {
       return;
     }
 
-    console.log(`Processing avatar for ${user.name}...`);
+    console.log(`Starting processing for ${user.name}...`);
+    console.log(`[${user.name}] Creating temp directory...`);
 
     // Create temp directory if it doesn't exist
     const tempDir = path.join(__dirname, '../data/temp');
     await fs.mkdir(tempDir, { recursive: true });
 
     // Download the image
+    console.log(`[${user.name}] Downloading image...`);
     const imageBuffer = await downloadImage(avatarUrl);
     const tempInputPath = path.join(
       tempDir,
@@ -53,11 +69,15 @@ async function processAvatar(user) {
       `${user.name.toLowerCase()}_nobg.png`
     );
     await fs.writeFile(tempInputPath, imageBuffer);
+    console.log(`[${user.name}] Image downloaded and saved to temp file`);
 
     // Remove background using Python script
+    console.log(`[${user.name}] Removing background...`);
     await removeBackground(tempInputPath, tempOutputPath);
+    console.log(`[${user.name}] Background removed successfully`);
 
     // Resize the output image
+    console.log(`[${user.name}] Resizing image...`);
     const processedImage = await sharp(tempOutputPath)
       .resize(128, 128, {
         fit: 'contain',
@@ -73,10 +93,12 @@ async function processAvatar(user) {
     // Save the final processed image
     const outputPath = path.join(outputDir, `${user.name.toLowerCase()}.png`);
     await fs.writeFile(outputPath, processedImage);
+    console.log(`[${user.name}] Final image saved`);
 
     // Clean up temp files
     await fs.unlink(tempInputPath);
     await fs.unlink(tempOutputPath);
+    console.log(`[${user.name}] Temp files cleaned up`);
 
     console.log(`Successfully processed avatar for ${user.name}`);
   } catch (error) {
@@ -102,9 +124,16 @@ async function main() {
 
     console.log(`Found ${usersWhoNeedEmojis.length} users to process`);
 
-    // Process each user's avatar
-    for (const user of usersWhoNeedEmojis) {
-      await processAvatar(user);
+    // Process avatars in parallel with a smaller concurrency limit since we're using CPU
+    const batchSize = 3;
+    for (let i = 0; i < usersWhoNeedEmojis.length; i += batchSize) {
+      const batch = usersWhoNeedEmojis.slice(i, i + batchSize);
+      await Promise.all(batch.map((user) => processAvatar(user)));
+      console.log(
+        `Completed batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(
+          usersWhoNeedEmojis.length / batchSize
+        )}`
+      );
     }
 
     console.log('Avatar processing complete!');
