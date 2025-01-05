@@ -4,11 +4,11 @@ const path = require('path');
 
 async function loadData() {
   const usersData = await fs.readFile(
-    path.join(__dirname, '..', 'data', 'users.json'),
+    path.join(__dirname, '..', 'data', 'json', 'users.json'),
     'utf8'
   );
   const emojisData = await fs.readFile(
-    path.join(__dirname, '..', 'data', 'emojis.json'),
+    path.join(__dirname, '..', 'data', 'json', 'emojis.json'),
     'utf8'
   );
 
@@ -40,11 +40,13 @@ async function processUsers() {
     };
 
     await fs.writeFile(
-      path.join(__dirname, '..', 'data', 'processed.json'),
+      path.join(__dirname, '..', 'data', 'json', 'processed.json'),
       JSON.stringify(processedData, null, 2)
     );
 
-    console.log('Processing complete! Results saved to data/processed.json');
+    console.log(
+      'Processing complete! Results saved to data/json/processed.json'
+    );
     console.log(`Users with emojis: ${usersWithEmojisAlready.length}`);
     console.log(`Users needing emojis: ${usersWhoNeedEmojis.length}`);
   } catch (error) {

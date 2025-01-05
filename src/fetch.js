@@ -8,12 +8,15 @@ const slack = new WebClient(process.env.SLACK_TOKEN);
 
 async function createDataDirectoryIfNeeded() {
   const dataDir = path.join(__dirname, '..', 'data');
+  const jsonDir = path.join(dataDir, 'json');
   try {
     await fs.access(dataDir);
+    await fs.access(jsonDir);
   } catch {
-    await fs.mkdir(dataDir);
+    await fs.mkdir(dataDir, { recursive: true });
+    await fs.mkdir(jsonDir, { recursive: true });
   }
-  return dataDir;
+  return jsonDir;
 }
 
 async function fetchAndSaveUsers() {
@@ -40,23 +43,23 @@ async function fetchAndSaveUsers() {
     return true;
   });
 
-  const dataDir = await createDataDirectoryIfNeeded();
+  const jsonDir = await createDataDirectoryIfNeeded();
   await fs.writeFile(
-    path.join(dataDir, 'users.json'),
+    path.join(jsonDir, 'users.json'),
     JSON.stringify(activeUsers, null, 2)
   );
-  console.log('Users saved to data/users.json');
+  console.log('Users saved to data/json/users.json');
 }
 
 async function fetchAndSaveEmojis() {
   console.log('Fetching emojis...');
   const result = await slack.emoji.list();
-  const dataDir = await createDataDirectoryIfNeeded();
+  const jsonDir = await createDataDirectoryIfNeeded();
   await fs.writeFile(
-    path.join(dataDir, 'emojis.json'),
+    path.join(jsonDir, 'emojis.json'),
     JSON.stringify(result.emoji, null, 2)
   );
-  console.log('Emojis saved to data/emojis.json');
+  console.log('Emojis saved to data/json/emojis.json');
 }
 
 async function main() {
