@@ -129,14 +129,12 @@ async function processAvatar(user) {
     // Download the image
     console.log(`[${user.name}] Downloading image...`);
     const imageBuffer = await downloadImage(avatarUrl);
-    const tempInputPath = path.join(
-      tempDir,
-      `${user.name.toLowerCase()}_input.png`
-    );
-    const tempOutputPath = path.join(
-      tempDir,
-      `${user.name.toLowerCase()}_nobg.png`
-    );
+
+    // Remove any trailing underscores from the user's name
+    const sanitizedName = user.name.toLowerCase().replace(/_+$/, '');
+
+    const tempInputPath = path.join(tempDir, `${sanitizedName}_input.png`);
+    const tempOutputPath = path.join(tempDir, `${sanitizedName}_nobg.png`);
     await fs.writeFile(tempInputPath, imageBuffer);
     console.log(`[${user.name}] Image downloaded and saved to temp file`);
 
@@ -160,7 +158,7 @@ async function processAvatar(user) {
     await fs.mkdir(outputDir, { recursive: true });
 
     // Save the final processed image
-    const outputPath = path.join(outputDir, `${user.name.toLowerCase()}.png`);
+    const outputPath = path.join(outputDir, `${sanitizedName}.png`);
     await fs.writeFile(outputPath, processedImage);
     console.log(`[${user.name}] Final image saved`);
 
