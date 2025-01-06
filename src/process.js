@@ -4,7 +4,11 @@ const path = require('path');
 
 // Add sanitization function to be consistent with processAvatars.js
 function sanitizeUsername(username) {
-  return username.toLowerCase().replace(/_+$/, '');
+  return username
+    .toLowerCase()
+    .replace(/[\(\)\/\\]/g, '') // Remove parentheses and slashes
+    .replace(/_+$/, '') // Remove trailing underscores
+    .trim();
 }
 
 async function loadData() {

@@ -14,6 +14,15 @@ const errorLogs = {
   otherErrors: [], // Other processing errors
 };
 
+// Add sanitization function to handle special characters
+function sanitizeFilename(name) {
+  return name
+    .toLowerCase()
+    .replace(/[\(\)\/\\]/g, '') // Remove parentheses and slashes
+    .replace(/_+$/, '') // Remove trailing underscores
+    .trim();
+}
+
 async function downloadImage(url) {
   try {
     const response = await axios.get(url, { responseType: 'arraybuffer' });
@@ -132,7 +141,7 @@ async function processAvatar(user) {
 
     // Remove any trailing underscores from the user's name and log the change
     const originalName = user.name.toLowerCase();
-    const sanitizedName = originalName.replace(/_+$/, '');
+    const sanitizedName = sanitizeFilename(originalName);
     if (originalName !== sanitizedName) {
       console.log(
         `[${user.name}] Note: Sanitized username from "${originalName}" to "${sanitizedName}"`
