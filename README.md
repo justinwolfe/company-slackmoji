@@ -2,7 +2,7 @@
 
 Automatically convert your Slack workspace's user avatars into custom emojis. This tool fetches user profile pictures, removes backgrounds, and creates Slack-compatible emoji formats - perfect for adding a personal touch to your workspace communications. This is all performed locally on your computer using the CPU.
 
-Once you've generated your images, you can use [this Chrome Extension](https://chromewebstore.google.com/detail/neutral-face-emoji-tools/anchoacphlfbdomdlomnbbfhcmcdmjej?hl=en) to bulk-add them.
+Once you've generated your images, you can use a Chrome Extension (Options, though I can't vouch for these (compute with care!): [1](https://chromewebstore.google.com/detail/neutral-face-emoji-tools/anchoacphlfbdomdlomnbbfhcmcdmjej) [2](https://chromewebstore.google.com/detail/slack-custom-emoji-manage/cgipifjpcbhdppbjjphmgkmmgbeaggpc?hl=en)) to bulk-add them.
 
 ## 🚀 Features
 
