@@ -130,13 +130,21 @@ async function processAvatar(user) {
     console.log(`[${user.name}] Downloading image...`);
     const imageBuffer = await downloadImage(avatarUrl);
 
-    // Remove any trailing underscores from the user's name
-    const sanitizedName = user.name.toLowerCase().replace(/_+$/, '');
+    // Remove any trailing underscores from the user's name and log the change
+    const originalName = user.name.toLowerCase();
+    const sanitizedName = originalName.replace(/_+$/, '');
+    if (originalName !== sanitizedName) {
+      console.log(
+        `[${user.name}] Note: Sanitized username from "${originalName}" to "${sanitizedName}"`
+      );
+    }
 
     const tempInputPath = path.join(tempDir, `${sanitizedName}_input.png`);
     const tempOutputPath = path.join(tempDir, `${sanitizedName}_nobg.png`);
     await fs.writeFile(tempInputPath, imageBuffer);
-    console.log(`[${user.name}] Image downloaded and saved to temp file`);
+    console.log(
+      `[${user.name}] Image downloaded and saved to temp file: ${tempInputPath}`
+    );
 
     // Remove background using Python script
     console.log(`[${user.name}] Removing background...`);
@@ -160,7 +168,7 @@ async function processAvatar(user) {
     // Save the final processed image
     const outputPath = path.join(outputDir, `${sanitizedName}.png`);
     await fs.writeFile(outputPath, processedImage);
-    console.log(`[${user.name}] Final image saved`);
+    console.log(`[${user.name}] Final image saved as: ${outputPath}`);
 
     // Clean up temp files
     await fs.unlink(tempInputPath);

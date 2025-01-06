@@ -2,6 +2,11 @@ require('dotenv').config();
 const fs = require('fs').promises;
 const path = require('path');
 
+// Add sanitization function to be consistent with processAvatars.js
+function sanitizeUsername(username) {
+  return username.toLowerCase().replace(/_+$/, '');
+}
+
 async function loadData() {
   const usersData = await fs.readFile(
     path.join(__dirname, '..', 'data', 'json', 'users.json'),
@@ -24,10 +29,20 @@ async function processUsers() {
 
     const usersWithEmojisAlready = [];
     const usersWhoNeedEmojis = [];
+    const skippedUsers = []; // Track users we're skipping
 
     users.forEach((user) => {
-      // Check if user's handle exists as an emoji
-      if (emojis[user.name.toLowerCase()]) {
+      const sanitizedName = sanitizeUsername(user.name);
+
+      // Log the original and sanitized names if they differ
+      if (user.name !== sanitizedName) {
+        console.log(
+          `Note: Sanitized username "${user.name}" to "${sanitizedName}"`
+        );
+      }
+
+      // Check if user's sanitized handle exists as an emoji
+      if (emojis[sanitizedName]) {
         usersWithEmojisAlready.push(user);
       } else {
         usersWhoNeedEmojis.push(user);
@@ -37,6 +52,7 @@ async function processUsers() {
     const processedData = {
       usersWithEmojisAlready,
       usersWhoNeedEmojis,
+      skippedUsers,
     };
 
     await fs.writeFile(
@@ -45,10 +61,13 @@ async function processUsers() {
     );
 
     console.log(
-      'Processing complete! Results saved to data/json/processed.json'
+      '\nProcessing complete! Results saved to data/json/processed.json'
     );
     console.log(`Users with emojis: ${usersWithEmojisAlready.length}`);
     console.log(`Users needing emojis: ${usersWhoNeedEmojis.length}`);
+    if (skippedUsers.length > 0) {
+      console.log(`Skipped users: ${skippedUsers.length}`);
+    }
   } catch (error) {
     console.error('Error:', error.message);
     process.exit(1);
